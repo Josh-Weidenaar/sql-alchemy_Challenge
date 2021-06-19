@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from flask import Flask, jsonify
 import datetime as dt
+from sqlalchemy import and_
 
 engine = create_engine(r"sqlite:///C:\Users\JoshWeidenaar\Documents\Bootcamp\1_Homework\sql-alchemy_Challenge\Resources\hawaii.sqlite", poolclass=QueuePool)
 # reflect an existing database into a new model
@@ -110,17 +111,60 @@ def start(start_date):
     session = Session(engine)
 
     startDate = str(start_date).strip("(',)").split("-")
-    startDate = dt.date(int(startDate[0]),int(startDate[1]),int(startDate[2]),errors='coerce')
+    startDate = dt.datetime(int(startDate[2]),int(startDate[0]),int(startDate[1]))
 
-    results = session.query(measurement.date, measurement.prcp).filter(measurement.date > startDate).order_by(measurement.date.desc()).all()
-
+    results = session.query(measurement.date, measurement.tobs).filter(measurement.date > startDate).order_by(measurement.date.desc()).all()
+    
+    dicts = {}
+    dicts['StartDate'] = startDate
+    
     session.close()
 
-    lists = []
-    for i in results:
-        lists.append(i)
+    try: 
+        df = pd.DataFrame(results)
+        TMax = df.tobs.max()
+        TMin = df.tobs.min()
+        TAvg = df.tobs.mean()
+        dicts['TMax'] = TMax
+        dicts['TMin'] = TMin
+        dicts['TAvg'] = TAvg
+    except:
+        dicts['TMax'] = "error"
+        dicts['TMin'] = "error"
+        dicts['TAvg'] = "error"
 
-    return jsonify(lists)
+    return jsonify(dicts)
 
+
+@app.route("/api/v1.0/<start_date>/<end_date>")
+def startend(start_date,end_date):
+    session = Session(engine)
+
+    startDate = str(start_date).strip("(',)").split("-")
+    startDate = dt.datetime(int(startDate[2]),int(startDate[0]),int(startDate[1]))
+    endDate = str(end_date).strip("(',)").split("-")
+    endDate = dt.datetime(int(endDate[2]),int(endDate[0]),int(endDate[1]))
+
+    results = session.query(measurement.date, measurement.tobs).filter(and_(measurement.date >= startDate, measurement.date <= endDate)).order_by(measurement.date.desc()).all()
+    
+    dicts = {}
+    dicts['StartDate'] = startDate
+    dicts['EndDate'] = endDate
+    session.close()
+
+    try: 
+        df = pd.DataFrame(results)
+        TMax = df.tobs.max()
+        TMin = df.tobs.min()
+        TAvg = df.tobs.mean()
+        dicts['TMax'] = TMax
+        dicts['TMin'] = TMin
+        dicts['TAvg'] = TAvg
+    except:
+        dicts['TMax'] = "error"
+        dicts['TMin'] = "error"
+        dicts['TAvg'] = "error"
+
+    return jsonify(dicts)
 if __name__ == "__main__":
     app.run(debug=True)
